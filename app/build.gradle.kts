@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -17,7 +19,7 @@ if (!sherpaAar.exists()) {
     val url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v$sherpaVersion/sherpa-onnx-$sherpaVersion.aar"
     logger.lifecycle("Downloading $url")
     val part = file("libs/sherpa-onnx-$sherpaVersion.aar.part")
-    java.net.URL(url).openStream().use { input ->
+    URL(url).openStream().use { input ->
         part.outputStream().use { output -> input.copyTo(output) }
     }
     part.renameTo(sherpaAar)
