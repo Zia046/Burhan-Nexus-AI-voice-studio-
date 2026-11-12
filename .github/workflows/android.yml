@@ -88,6 +88,16 @@ jobs:
             grep -n -E "^e: |^w: .*deprecat|error:|FAILED|What went wrong|Unresolved|Could not" -A4 build.log | head -n 400 > ci-out/errors.log || true
           fi
           ls -lh app/build/outputs/apk/debug/ > ci-out/apk.txt 2>&1 || true
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          {
+            echo "== build-tools $BT"; sha256sum $APK; stat -c %s $APK
+            echo "== apksigner"; $BT/apksigner verify --verbose --print-certs --min-sdk-version 26 $APK 2>&1 | head -40
+            echo "== zipalign"; $BT/zipalign -c -P 16 -v 4 $APK 2>&1 | grep -v "(OK" | tail -15
+            echo "== badging"; $BT/aapt2 dump badging $APK 2>&1 | head -30
+            echo "== manifest"; $BT/aapt2 dump xmltree --file AndroidManifest.xml $APK 2>&1 | head -120
+            echo "== libs"; unzip -lv $APK | grep -E "lib/|Stored|Defl" | grep "lib/" | head -40
+          } > ci-out/apk-diagnostics.txt 2>&1 || true
           cd ci-out
           git init -q
           git checkout -q -b ci-logs
