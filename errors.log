@@ -1,0 +1,5 @@
+53:w: file:///home/runner/work/Burhan-Nexus-AI-voice-studio-/Burhan-Nexus-AI-voice-studio-/app/src/main/java/com/burhannexus/voicestudio/ui/Theme.kt:137:74 'ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack
+54-
+55-> Task :app:compileDebugJavaWithJavac
+56-> Task :app:processDebugJavaRes
+57-> Task :app:bundleDebugClassesToCompileJar
