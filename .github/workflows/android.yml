@@ -1,0 +1,96 @@
+name: Android Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Download sherpa-onnx AAR
+        run: |
+          mkdir -p app/libs
+          curl -fL --retry 3 -o app/libs/sherpa-onnx-1.13.6.aar \
+            https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.6/sherpa-onnx-1.13.6.aar
+          ls -lh app/libs
+
+      - name: Unit tests + debug APK
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest assembleDebug --stacktrace 2>&1 | tee build.log
+
+      - name: Signed release APK (only when keystore secrets exist)
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "No release keystore secrets - skipping signed release build."
+            exit 0
+          fi
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          export RELEASE_KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
+          gradle assembleRelease --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk BurhanNexus-AI-Voice-Studio-release.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: burhan-nexus-ai-voice-studio-apk
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            BurhanNexus-AI-Voice-Studio-release.apk
+          if-no-files-found: error
+
+      - name: Publish APK to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk BurhanNexus-AI-Voice-Studio-debug.apk
+          FILES="BurhanNexus-AI-Voice-Studio-debug.apk"
+          [ -f BurhanNexus-AI-Voice-Studio-release.apk ] && FILES="$FILES BurhanNexus-AI-Voice-Studio-release.apk"
+          gh release delete latest --cleanup-tag -y || true
+          sleep 3
+          gh release create latest $FILES --target "$GITHUB_SHA" \
+            --title "Burhan Nexus AI Voice Studio (latest build)" \
+            --notes "Automatic build of commit $GITHUB_SHA. Install the APK on Android 8.0 or newer."
+
+      - name: Publish build status to ci-logs branch
+        if: always()
+        run: |
+          mkdir -p ci-out
+          echo "${{ job.status }} $GITHUB_SHA $(date -u +%FT%TZ)" > ci-out/status.txt
+          if [ -f build.log ]; then
+            tail -n 300 build.log > ci-out/build-tail.log
+            grep -n -E "^e: |^w: .*deprecat|error:|FAILED|What went wrong|Unresolved|Could not" -A4 build.log | head -n 400 > ci-out/errors.log || true
+          fi
+          ls -lh app/build/outputs/apk/debug/ > ci-out/apk.txt 2>&1 || true
+          cd ci-out
+          git init -q
+          git checkout -q -b ci-logs
+          git add .
+          git -c user.name="ci" -c user.email="ci@users.noreply.github.com" commit -qm "CI status for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-logs
