@@ -71,7 +71,7 @@ class CoreTest {
     fun wavRoundTripAndStreamingJoin() {
         val a = ShortArray(24000) { (it % 100 * 300).toShort() }
         val b = ShortArray(12000) { (-it % 50 * 200).toShort() }
-        val f1 = File.createTempFile("a", ".wav")
+        val f1 = File.createTempFile("chunk", ".wav")
         val joined = File.createTempFile("joined", ".wav")
         try {
             Wav.write(f1, a, 24000)
