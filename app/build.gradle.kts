@@ -122,7 +122,9 @@ dependencies {
     // tar.bz2 extraction for downloaded models
     implementation("org.apache.commons:commons-compress:1.26.2")
     // LAME MP3 encoder (LGPL)
-    implementation("com.github.naman14:TAndroidLame:1.1")
+    implementation("com.github.naman14:TAndroidLame:1.1") {
+        exclude(group = "com.android.support")
+    }
 
     testImplementation("junit:junit:4.13.2")
 }
