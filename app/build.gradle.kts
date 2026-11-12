@@ -33,8 +33,8 @@ android {
         applicationId = "com.burhannexus.voicestudio"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
@@ -46,6 +46,10 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+            // Sign with every scheme so that all phone installers accept the APK.
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
         }
         // Release key comes only from environment variables / GitHub Secrets.
         create("release") {
@@ -89,6 +93,9 @@ android {
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 
     packaging {
+        // Classic packaging: native libraries are compressed inside the APK and unpacked at
+        // install time. Smaller download and accepted by stricter OEM installers.
+        jniLibs { useLegacyPackaging = true }
         resources {
             excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/*.kotlin_module")
         }
